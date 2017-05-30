@@ -209,6 +209,15 @@ class LDAPUserConnector(UserConnector):
         return uri + '%s:%d' % (server, self._config.get('port', 389))
 
 
+    def format_ldap_dn(self, dn):
+        '''
+        Normalize a distinquished name and strip off all superfluous chars to
+        make them comparable.
+        '''
+        ldn = ldap.dn.str2dn(dn)
+
+        return ldap.dn.dn2str(ldn)
+
     def connect(self, enforce_new = False, enforce_server = None):
         connection_id = self.id()
 
@@ -648,7 +657,7 @@ class LDAPUserConnector(UserConnector):
                                         'exist for the user "%s"') % (user_id_attr, dn))
             user_id = self.sanitize_user_id(ldap_user[user_id_attr][0])
             if user_id:
-                ldap_user['dn'] = dn # also add the DN
+                ldap_user['dn'] = self.format_ldap_dn(dn) # also add the DN
                 result[user_id] = ldap_user
 
         return result
@@ -729,7 +738,8 @@ class LDAPUserConnector(UserConnector):
                                                 ['cn', member_attr], 'base'):
                     groups[f_dn] = {
                         'cn'      : obj['cn'][0],
-                        'members' : [ m.encode('utf-8').lower() for m in obj.get(member_attr,[]) ],
+                        'members' : [ self.format_ldap_dn(m.encode('utf-8')).lower()
+                                      for m in obj.get(member_attr,[]) ],
                     }
 
         return groups
